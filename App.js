@@ -359,14 +359,38 @@ export default function App() {
     <View style={styles.container}>
       {!userInfo ? (
         <>
-          <Text style={styles.title}>Sign In</Text>
-          {error && <Text style={styles.error}>Error: {error}</Text>}
-          <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signIn} />
-          <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
-          <Text style={styles.title}>Sign Up</Text>
-          {error && <Text style={styles.error}>Error: {error}</Text>}
-          <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signUp} />
-          <AppleSignIn onSignIn={handleAppleSignUp} onError={handleError} />
+          <View style={styles.circlesContainer}>
+            <View style={styles.circleBox}>
+              <View style={[styles.circle, { backgroundColor: "#007AFF" }]}>
+                <Text style={styles.circleText}>Sign Up</Text>
+              </View>
+            </View>
+            <View style={styles.circleBox}>
+              <View style={[styles.circle, { backgroundColor: "#00C7BE" }]}>
+                <Text style={styles.circleText}>How It Works</Text>
+              </View>
+            </View>
+            <View style={styles.circleBox}>
+              <View style={[styles.circle, { backgroundColor: "#AF52DE" }]}>
+                <Text style={styles.circleText}>Login</Text>
+              </View>
+            </View>
+            <View style={styles.circleBox}>
+              <View style={[styles.circle, { backgroundColor: "#FF9500" }]}>
+                <Text style={styles.circleText}>Every Circle</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.authContainer}>
+            <Text style={styles.title}>Sign In</Text>
+            {error && <Text style={styles.error}>Error: {error}</Text>}
+            <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signIn} />
+            <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
+            <Text style={styles.title}>Sign Up</Text>
+            {error && <Text style={styles.error}>Error: {error}</Text>}
+            <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signUp} />
+            <AppleSignIn onSignIn={handleAppleSignUp} onError={handleError} />
+          </View>
           {showSpinner && (
             <View style={styles.spinnerContainer}>
               <ActivityIndicator size='large' color='#0000ff' />
@@ -395,6 +419,41 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+  },
+  circlesContainer: {
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
+    height: 300,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    padding: 20,
+  },
+  circleBox: {
+    width: 150,
+    height: 150,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  circle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 10,
+  },
+  circleText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  authContainer: {
+    marginTop: 400,
+    alignItems: "center",
   },
   title: {
     fontSize: 24,

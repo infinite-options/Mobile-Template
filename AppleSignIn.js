@@ -5,6 +5,7 @@ import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AppleSignIn = ({ onSignIn, onError }) => {
+  console.log("AppleSignIn - Rendering");
   const handleAppleSignIn = async () => {
     try {
       if (Platform.OS === "ios") {
