@@ -1,6 +1,6 @@
 import "./polyfills";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Platform, Alert } from "react-native";
+import { StyleSheet, Text, View, Platform, Alert, ActivityIndicator } from "react-native";
 import { GoogleSignin, GoogleSigninButton, statusCodes } from "@react-native-google-signin/google-signin";
 import config from "./config";
 import MapScreen from "./screens/MapScreen";
@@ -15,6 +15,8 @@ console.log("App.js - Imported config:", config);
 export default function App() {
   const [userInfo, setUserInfo] = useState(null);
   const [error, setError] = useState(null);
+  const [showSpinner, setShowSpinner] = useState(false);
+  const [signInInProgress, setSignInInProgress] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
@@ -174,6 +176,133 @@ export default function App() {
     }
   };
 
+  const handleAppleSignUp = async (userInfo) => {
+    console.log("Apple sign-up called with userInfo:", JSON.stringify(userInfo, null, 2));
+
+    // Set a timeout to reset the sign-in state in case the process hangs
+    const signInTimeoutId = setTimeout(() => {
+      console.log("Apple sign-up timeout - resetting state");
+      setSignInInProgress(false);
+      setShowSpinner(false);
+    }, 30000); // 30 seconds timeout
+
+    try {
+      setShowSpinner(true);
+      setSignInInProgress(true);
+
+      // Extract user data from Apple Sign In response
+      const { user, idToken } = userInfo;
+
+      console.log("Apple User ID:", user.id);
+      console.log("Apple User Email:", user.email);
+      console.log("Apple User Name:", user.name);
+      console.log("Apple ID Token Length:", idToken ? idToken.length : 0);
+
+      // Extract email from idToken if user.email is null
+      let userEmail = user.email;
+
+      // If email is null, try to extract it from the idToken
+      if (!userEmail && idToken) {
+        try {
+          const tokenParts = idToken.split(".");
+          if (tokenParts.length >= 2) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.email) {
+              userEmail = payload.email;
+              console.log("Extracted email from idToken:", userEmail);
+            }
+          }
+        } catch (e) {
+          console.log("Error extracting email from idToken:", e);
+        }
+      }
+
+      // If still no email, use a placeholder
+      if (!userEmail) {
+        userEmail = `apple_user_${user.id}@example.com`;
+        console.log("Using placeholder email:", userEmail);
+      }
+
+      // Create user data payload for backend
+      const userData = {
+        email: userEmail,
+        password: "APPLE_LOGIN",
+        phone_number: "",
+        google_auth_token: idToken,
+        google_refresh_token: "apple",
+        social_id: user.id,
+        first_name: user.name ? user.name.split(" ")[0] : "",
+        last_name: user.name ? user.name.split(" ").slice(1).join(" ") : "",
+        profile_picture: "",
+        login_type: "apple",
+      };
+
+      console.log("Sending Apple data to backend:", JSON.stringify(userData, null, 2));
+
+      // Call backend endpoint for Apple signup
+      const response = await fetch(GOOGLE_SIGNUP_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      const result = await response.json();
+      console.log("Backend response for Apple Sign Up:", JSON.stringify(result, null, 2));
+
+      // Handle response
+      if (result.message === "User already exists") {
+        const appleLoginEndpoint = "https://41c664jpz1.execute-api.us-west-1.amazonaws.com/dev/appleLogin";
+        console.log("Calling appleLogin endpoint with ID:", user.id);
+
+        const loginResponse = await fetch(appleLoginEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({ id: user.id }),
+        });
+
+        const loginData = await loginResponse.json();
+        console.log("Apple Login endpoint response:", loginData);
+
+        if (loginData?.result?.[0]?.user_uid) {
+          const userData = loginData.result[0];
+          await AsyncStorage.setItem("user_uid", userData.user_uid);
+          await AsyncStorage.setItem("user_email_id", userData.user_email_id || userEmail);
+          setUserInfo(userInfo);
+          setError(null);
+        } else {
+          Alert.alert("Error", "Failed to login with Apple. Please try again.");
+        }
+      } else if (result.user_uid) {
+        console.log("Storing Apple user data in AsyncStorage - user_uid:", result.user_uid);
+        await AsyncStorage.setItem("user_uid", result.user_uid);
+        await AsyncStorage.setItem("user_email_id", userEmail);
+
+        if (user.name) {
+          const firstName = user.name.split(" ")[0] || "";
+          const lastName = user.name.split(" ").slice(1).join(" ") || "";
+          await AsyncStorage.setItem("user_first_name", firstName);
+          await AsyncStorage.setItem("user_last_name", lastName);
+        }
+
+        setUserInfo(userInfo);
+        setError(null);
+      } else {
+        Alert.alert("Error", "Failed to create account. Please try again.");
+      }
+    } catch (error) {
+      console.error("Apple sign-up error:", error);
+      Alert.alert("Error", "Failed to complete Apple sign up. Please try again.");
+      setError(error.message);
+    } finally {
+      clearTimeout(signInTimeoutId);
+      setShowSpinner(false);
+      setSignInInProgress(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {!userInfo ? (
@@ -185,7 +314,12 @@ export default function App() {
           <Text style={styles.title}>Sign Up</Text>
           {error && <Text style={styles.error}>Error: {error}</Text>}
           <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signUp} />
-          <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
+          <AppleSignIn onSignIn={handleAppleSignUp} onError={handleError} />
+          {showSpinner && (
+            <View style={styles.spinnerContainer}>
+              <ActivityIndicator size='large' color='#0000ff' />
+            </View>
+          )}
         </>
       ) : (
         <View style={styles.mainContainer}>
@@ -230,5 +364,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 10,
     backgroundColor: "#fff",
+  },
+  spinnerContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
   },
 });
