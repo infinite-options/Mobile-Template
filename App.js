@@ -1,11 +1,13 @@
 import "./polyfills";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Platform, Alert, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, Platform, Alert, ActivityIndicator, TouchableOpacity } from "react-native";
 import { GoogleSignin, GoogleSigninButton, statusCodes } from "@react-native-google-signin/google-signin";
 import config from "./config";
 import MapScreen from "./screens/MapScreen";
 import UserInfoScreen from "./screens/UserInfoScreen";
 import UserProfile from "./screens/UserProfile";
+import SignUpScreen from "./screens/SignUpScreen";
+import LoginScreen from "./screens/LoginScreen";
 import Constants from "expo-constants";
 import AppleSignIn from "./AppleSignIn";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,6 +24,8 @@ export default function App() {
   const [signInInProgress, setSignInInProgress] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
@@ -355,48 +359,73 @@ export default function App() {
     setShowUserInfo(true);
   };
 
+  const handleSignUpClick = () => {
+    setShowSignUp(true);
+    setShowLogin(false);
+  };
+
+  const handleLoginClick = () => {
+    setShowLogin(true);
+    setShowSignUp(false);
+  };
+
   return (
     <View style={styles.container}>
       {!userInfo ? (
-        <>
-          <View style={styles.circlesContainer}>
-            <View style={styles.circleBox}>
-              <View style={[styles.circle, { backgroundColor: "#007AFF" }]}>
-                <Text style={styles.circleText}>Sign Up</Text>
+        showSignUp ? (
+          <SignUpScreen
+            onGoogleSignUp={signUp}
+            onAppleSignUp={handleAppleSignUp}
+            onError={handleError}
+            onLoginPress={handleLoginClick}
+            onSignUpSuccess={() => {
+              setShowSignUp(false);
+              setShowUserInfo(true);
+            }}
+          />
+        ) : showLogin ? (
+          <LoginScreen onGoogleSignIn={signIn} onAppleSignIn={handleSignIn} onError={handleError} onSignUpPress={handleSignUpClick} />
+        ) : (
+          <>
+            <View style={styles.circlesContainer}>
+              <TouchableOpacity style={styles.circleBox} onPress={handleSignUpClick}>
+                <View style={[styles.circle, { backgroundColor: "#007AFF" }]}>
+                  <Text style={styles.circleText}>Sign Up</Text>
+                </View>
+              </TouchableOpacity>
+              <View style={styles.circleBox}>
+                <View style={[styles.circle, { backgroundColor: "#00C7BE" }]}>
+                  <Text style={styles.circleText}>How It Works</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.circleBox} onPress={handleLoginClick}>
+                <View style={[styles.circle, { backgroundColor: "#AF52DE" }]}>
+                  <Text style={styles.circleText}>Login</Text>
+                </View>
+              </TouchableOpacity>
+              <View style={styles.circleBox}>
+                <View style={[styles.circle, { backgroundColor: "#FF9500" }]}>
+                  <Text style={styles.circleText}>Every Circle</Text>
+                </View>
               </View>
             </View>
-            <View style={styles.circleBox}>
-              <View style={[styles.circle, { backgroundColor: "#00C7BE" }]}>
-                <Text style={styles.circleText}>How It Works</Text>
+            <View style={styles.authContainer}>
+              <Text style={styles.title}>Sign In</Text>
+              {error && <Text style={styles.error}>Error: {error}</Text>}
+              <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signIn} />
+              <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
+              <Text style={styles.title}>Sign Up</Text>
+              {error && <Text style={styles.error}>Error: {error}</Text>}
+              <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signUp} />
+              <AppleSignIn onSignIn={handleAppleSignUp} onError={handleError} />
+            </View>
+            {showSpinner && (
+              <View style={styles.spinnerContainer}>
+                <ActivityIndicator size='large' color='#0000ff' />
               </View>
-            </View>
-            <View style={styles.circleBox}>
-              <View style={[styles.circle, { backgroundColor: "#AF52DE" }]}>
-                <Text style={styles.circleText}>Login</Text>
-              </View>
-            </View>
-            <View style={styles.circleBox}>
-              <View style={[styles.circle, { backgroundColor: "#FF9500" }]}>
-                <Text style={styles.circleText}>Every Circle</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.authContainer}>
-            <Text style={styles.title}>Sign In</Text>
-            {error && <Text style={styles.error}>Error: {error}</Text>}
-            <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signIn} />
-            <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
-            <Text style={styles.title}>Sign Up</Text>
-            {error && <Text style={styles.error}>Error: {error}</Text>}
-            <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signUp} />
-            <AppleSignIn onSignIn={handleAppleSignUp} onError={handleError} />
-          </View>
-          {showSpinner && (
-            <View style={styles.spinnerContainer}>
-              <ActivityIndicator size='large' color='#0000ff' />
-            </View>
-          )}
-        </>
+            )}
+          </>
+        )
       ) : showUserInfo ? (
         <UserInfoScreen onContinue={handleUserInfoComplete} />
       ) : showUserProfile ? (
