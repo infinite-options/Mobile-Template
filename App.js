@@ -5,11 +5,13 @@ import { GoogleSignin, GoogleSigninButton, statusCodes } from "@react-native-goo
 import config from "./config";
 import MapScreen from "./screens/MapScreen";
 import UserInfoScreen from "./screens/UserInfoScreen";
+import UserProfile from "./screens/UserProfile";
 import Constants from "expo-constants";
 import AppleSignIn from "./AppleSignIn";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GOOGLE_SIGNUP_ENDPOINT = "https://mrle52rri4.execute-api.us-west-1.amazonaws.com/dev/api/v2/UserSocialSignUp/EVERY-CIRCLE";
+const GOOGLE_SIGNIN_ENDPOINT = "https://mrle52rri4.execute-api.us-west-1.amazonaws.com/dev/api/v2/UserSocialLogin/EVERY-CIRCLE";
 
 console.log("App.js - Imported config:", config);
 
@@ -19,6 +21,7 @@ export default function App() {
   const [showSpinner, setShowSpinner] = useState(false);
   const [signInInProgress, setSignInInProgress] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
@@ -57,9 +60,39 @@ export default function App() {
     initialize();
   }, []);
 
-  const handleSignIn = (userInfo) => {
-    setUserInfo(userInfo);
-    setError(null);
+  const handleSignIn = async (userInfo) => {
+    try {
+      console.log("handleSignIn - userInfo:", userInfo);
+      const { user } = userInfo;
+      const userEmail = user.email;
+      console.log("User email for sign in:", userEmail);
+
+      // Call the sign-in endpoint
+      const response = await fetch(`${GOOGLE_SIGNIN_ENDPOINT}/${userEmail}`);
+
+      const result = await response.json();
+      console.log("Sign-in endpoint response:", result);
+
+      if (result.message === "Correct Email" && result.result && result.result[0]) {
+        const userUid = result.result[0];
+        console.log("Extracted user_uid:", userUid);
+
+        // Save the user_uid to AsyncStorage
+        await AsyncStorage.setItem("user_uid", userUid);
+        await AsyncStorage.setItem("user_email_id", userEmail);
+
+        // Update state
+        setUserInfo(userInfo);
+        setShowUserProfile(true);
+        setError(null);
+      } else {
+        throw new Error("Failed to get user_uid from sign-in response");
+      }
+    } catch (error) {
+      console.error("Error in handleSignIn:", error);
+      Alert.alert("Error", "Failed to complete sign in. Please try again.");
+      setError(error.message);
+    }
   };
 
   const handleSignUp = async (userInfo) => {
@@ -95,7 +128,7 @@ export default function App() {
       });
 
       const result = await response.json();
-      console.log("Backend response:", result);
+      console.log("Backend Signup response:", result);
 
       // Handle response
       if (result.message === "User already exists") {
@@ -310,6 +343,16 @@ export default function App() {
 
   const handleUserInfoComplete = () => {
     setShowUserInfo(false);
+    setShowUserProfile(true);
+  };
+
+  const handleUserProfileComplete = () => {
+    setShowUserProfile(false);
+  };
+
+  const handleEditProfile = () => {
+    setShowUserProfile(false);
+    setShowUserInfo(true);
   };
 
   return (
@@ -332,6 +375,8 @@ export default function App() {
         </>
       ) : showUserInfo ? (
         <UserInfoScreen onContinue={handleUserInfoComplete} />
+      ) : showUserProfile ? (
+        <UserProfile onContinue={handleUserProfileComplete} onEdit={handleEditProfile} />
       ) : (
         <View style={styles.mainContainer}>
           <View style={styles.header}>

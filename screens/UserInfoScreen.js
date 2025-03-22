@@ -26,6 +26,7 @@ export default function UserInfoScreen({ onContinue }) {
   }, []);
 
   const handleContinue = async () => {
+    console.log("UserInfoScreen - Continue button pressed");
     if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim()) {
       Alert.alert("Error", "Please fill in all fields");
       return;
@@ -40,16 +41,49 @@ export default function UserInfoScreen({ onContinue }) {
 
     setLoading(true);
     try {
-      // Save the updated information
+      // Save the updated information to AsyncStorage
       await AsyncStorage.setItem("user_first_name", firstName.trim());
       await AsyncStorage.setItem("user_last_name", lastName.trim());
       await AsyncStorage.setItem("user_phone_number", phoneNumber.trim());
 
+      // Get the user_uid from AsyncStorage
+      const userUid = await AsyncStorage.getItem("user_uid");
+      if (!userUid) {
+        throw new Error("User UID not found");
+      }
+
+      // Create form data for the API request
+      const formData = new FormData();
+      formData.append("profile_personal_first_name", firstName.trim());
+      formData.append("profile_personal_last_name", lastName.trim());
+      formData.append("profile_personal_phone_number", phoneNumber.trim());
+      formData.append("profile_personal_referred_by", "100-000001");
+      formData.append("user_uid", userUid);
+
+      console.log("Sending profile data to backend:", formData);
+
+      // Make the POST request to update user profile
+      const response = await fetch("https://ioec2testsspm.infiniteoptions.com/api/v1/userprofileinfo", {
+        method: "POST",
+        headers: {
+          // Remove "Content-Type": "multipart/form-data"
+        },
+        body: formData,
+      });
+      console.log("User profile response:", response);
+
+      if (!response.ok) {
+        throw new Error("Failed to update user profile");
+      }
+
+      const result = await response.json();
+      console.log("Profile update response:", result);
+
       // Call the onContinue callback to proceed to the next screen
       onContinue();
     } catch (error) {
-      console.error("Error saving user info:", error);
-      Alert.alert("Error", "Failed to save information. Please try again.");
+      console.error("Error updating user profile:", error);
+      Alert.alert("Error", "Failed to update profile. Please try again.");
     } finally {
       setLoading(false);
     }
