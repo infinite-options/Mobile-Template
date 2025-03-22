@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, Platform, Alert, ActivityIndicator } from "reac
 import { GoogleSignin, GoogleSigninButton, statusCodes } from "@react-native-google-signin/google-signin";
 import config from "./config";
 import MapScreen from "./screens/MapScreen";
+import UserInfoScreen from "./screens/UserInfoScreen";
 import Constants from "expo-constants";
 import AppleSignIn from "./AppleSignIn";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,6 +18,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showSpinner, setShowSpinner] = useState(false);
   const [signInInProgress, setSignInInProgress] = useState(false);
+  const [showUserInfo, setShowUserInfo] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
@@ -120,8 +122,9 @@ export default function App() {
           await AsyncStorage.setItem("user_last_name", user.familyName || "");
         }
 
-        // Set user info and navigate to MapScreen
+        // Show UserInfoScreen instead of MapScreen
         setUserInfo(userInfo);
+        setShowUserInfo(true);
         setError(null);
       } else {
         Alert.alert("Error", "Failed to create account. Please try again.", [{ text: "OK" }]);
@@ -271,6 +274,7 @@ export default function App() {
           await AsyncStorage.setItem("user_uid", userData.user_uid);
           await AsyncStorage.setItem("user_email_id", userData.user_email_id || userEmail);
           setUserInfo(userInfo);
+          setShowUserInfo(true);
           setError(null);
         } else {
           Alert.alert("Error", "Failed to login with Apple. Please try again.");
@@ -288,6 +292,7 @@ export default function App() {
         }
 
         setUserInfo(userInfo);
+        setShowUserInfo(true);
         setError(null);
       } else {
         Alert.alert("Error", "Failed to create account. Please try again.");
@@ -301,6 +306,10 @@ export default function App() {
       setShowSpinner(false);
       setSignInInProgress(false);
     }
+  };
+
+  const handleUserInfoComplete = () => {
+    setShowUserInfo(false);
   };
 
   return (
@@ -321,6 +330,8 @@ export default function App() {
             </View>
           )}
         </>
+      ) : showUserInfo ? (
+        <UserInfoScreen onContinue={handleUserInfoComplete} />
       ) : (
         <View style={styles.mainContainer}>
           <View style={styles.header}>
