@@ -1,11 +1,14 @@
 import "./polyfills";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Platform } from "react-native";
+import { StyleSheet, Text, View, Platform, Alert } from "react-native";
 import { GoogleSignin, GoogleSigninButton, statusCodes } from "@react-native-google-signin/google-signin";
 import config from "./config";
 import MapScreen from "./screens/MapScreen";
 import Constants from "expo-constants";
 import AppleSignIn from "./AppleSignIn";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const GOOGLE_SIGNUP_ENDPOINT = "https://mrle52rri4.execute-api.us-west-1.amazonaws.com/dev/api/v2/UserSocialSignUp/EVERY-CIRCLE";
 
 console.log("App.js - Imported config:", config);
 
@@ -55,6 +58,79 @@ export default function App() {
     setError(null);
   };
 
+  const handleSignUp = async (userInfo) => {
+    try {
+      const { idToken, user } = userInfo;
+      console.log("User email:", user.email);
+      console.log("User ID:", user.id);
+
+      // Get tokens
+      const tokens = await GoogleSignin.getTokens();
+      console.log("Retrieved tokens:", tokens);
+
+      // Create user data payload
+      const userData = {
+        email: user.email,
+        password: "GOOGLE_LOGIN",
+        phone_number: "",
+        google_auth_token: tokens.accessToken,
+        google_refresh_token: tokens.refreshToken || "",
+        social_id: user.id,
+        first_name: user.givenName || "",
+        last_name: user.familyName || "",
+        profile_picture: user.photo || "",
+      };
+
+      console.log("Sending data to backend:", userData);
+
+      // Call backend endpoint for Google signup
+      const response = await fetch(GOOGLE_SIGNUP_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      const result = await response.json();
+      console.log("Backend response:", result);
+
+      // Handle response
+      if (result.message === "User already exists") {
+        Alert.alert("User Already Exists", "This Google account is already registered. Would you like to log in instead?", [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Log In",
+            onPress: () => signIn(),
+          },
+        ]);
+        return;
+      }
+
+      // Store user data in AsyncStorage
+      if (result.user_uid) {
+        await AsyncStorage.setItem("user_uid", result.user_uid);
+        await AsyncStorage.setItem("user_email_id", user.email);
+
+        if (user.givenName || user.familyName) {
+          await AsyncStorage.setItem("user_first_name", user.givenName || "");
+          await AsyncStorage.setItem("user_last_name", user.familyName || "");
+        }
+
+        // Set user info and navigate to MapScreen
+        setUserInfo(userInfo);
+        setError(null);
+      } else {
+        Alert.alert("Error", "Failed to create account. Please try again.", [{ text: "OK" }]);
+      }
+    } catch (error) {
+      console.error("Sign up error:", error);
+      Alert.alert("Error", "Failed to complete sign up. Please try again.", [{ text: "OK" }]);
+      setError(error.message);
+    }
+  };
+
   const handleError = (errorMessage) => {
     setError(errorMessage);
   };
@@ -68,6 +144,19 @@ export default function App() {
       handleSignIn(userInfo);
     } catch (error) {
       console.error("Sign-in error:", error);
+      handleError(error.message);
+    }
+  };
+
+  const signUp = async () => {
+    try {
+      console.log("Starting Google Sign-Up process...");
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      console.log("Sign-up successful:", userInfo);
+      handleSignUp(userInfo);
+    } catch (error) {
+      console.error("Sign-up error:", error);
       handleError(error.message);
     }
   };
@@ -92,6 +181,10 @@ export default function App() {
           <Text style={styles.title}>Sign In</Text>
           {error && <Text style={styles.error}>Error: {error}</Text>}
           <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signIn} />
+          <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
+          <Text style={styles.title}>Sign Up</Text>
+          {error && <Text style={styles.error}>Error: {error}</Text>}
+          <GoogleSigninButton style={styles.googleButton} size={GoogleSigninButton.Size.Wide} color={GoogleSigninButton.Color.Dark} onPress={signUp} />
           <AppleSignIn onSignIn={handleSignIn} onError={handleError} />
         </>
       ) : (
