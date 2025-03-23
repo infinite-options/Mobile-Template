@@ -54,41 +54,48 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
   const handleContinue = async () => {
     try {
       // First, check if the email exists
-      console.log("Checking if email exists:", email);
-      const saltResponse = await fetch(ACCOUNT_SALT_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      });
+      //   console.log("Checking if email exists:", email);
+      //   const saltResponse = await fetch(ACCOUNT_SALT_ENDPOINT, {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({ email }),
+      //   });
 
-      const saltData = await saltResponse.json();
-      console.log("Salt endpoint response:", saltData);
+      //   const saltData = await saltResponse.json();
+      //   console.log("Salt endpoint response:", saltData);
 
-      if (saltData.code === 200) {
-        // Email exists, show error
-        Alert.alert("Account Exists", "An account with this email already exists. Would you like to log in?", [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-          {
-            text: "Log In",
-            onPress: onLoginPress,
-          },
-        ]);
-        return;
-      }
+      //   if (saltData.code === 200) {
+      //     // Email exists, show error
+      //     Alert.alert("Account Exists", "An account with this email already exists. Would you like to log in?", [
+      //       {
+      //         text: "Cancel",
+      //         style: "cancel",
+      //       },
+      //       {
+      //         text: "Log In",
+      //         onPress: onLoginPress,
+      //       },
+      //     ]);
+      //     return;
+      //   }
 
-      // Email doesn't exist, proceed with account creation
-      console.log("Creating new account for email:", email, password);
-      const encryptedPassword = await encryptPassword(password);
-      console.log("Password encrypted (SHA256): ", encryptedPassword);
+      //   // Email doesn't exist, proceed with account creation
+      //   console.log("Creating new account for email:", email, password);
+      //   const encryptedPassword = await encryptPassword(password);
+      //   console.log("Password encrypted (SHA256): ", encryptedPassword);
+      //   console.log(
+      //     JSON.stringify({
+      //       email: email,
+      //       password: encryptedPassword,
+      //     })
+      //   );
       console.log(
+        "---Here 1---",
         JSON.stringify({
-          email: email,
-          password: encryptedPassword,
+          email,
+          password: password,
         })
       );
 
@@ -99,9 +106,10 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
         },
         body: JSON.stringify({
           email,
-          password: encryptedPassword,
+          password: password,
         }),
       });
+      console.log("---Here 2---");
 
       const createAccountData = await createAccountResponse.json();
       console.log("Create account response:", createAccountData);
