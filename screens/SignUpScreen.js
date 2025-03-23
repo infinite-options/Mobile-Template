@@ -111,13 +111,23 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
         await AsyncStorage.setItem("user_uid", createAccountData.user_uid);
         await AsyncStorage.setItem("user_email_id", email);
 
-        // Show success message and navigate to UserInfoScreen
+        // Create userInfo object similar to Google Sign Up
+        const userInfo = {
+          user: {
+            email: email,
+            name: email.split("@")[0], // Use email username as name
+            id: createAccountData.user_uid,
+          },
+        };
+
+        // Show success message
         Alert.alert("Success", "Account created successfully!", [
           {
             text: "OK",
             onPress: () => {
+              // Call onSignUpSuccess with userInfo to trigger navigation
               if (onSignUpSuccess) {
-                onSignUpSuccess();
+                onSignUpSuccess(userInfo);
               }
             },
           },

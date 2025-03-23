@@ -378,7 +378,8 @@ export default function App() {
             onAppleSignUp={handleAppleSignUp}
             onError={handleError}
             onLoginPress={handleLoginClick}
-            onSignUpSuccess={() => {
+            onSignUpSuccess={(userInfo) => {
+              setUserInfo(userInfo);
               setShowSignUp(false);
               setShowUserInfo(true);
             }}
