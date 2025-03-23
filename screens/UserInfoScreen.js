@@ -7,6 +7,8 @@ export default function UserInfoScreen({ onContinue }) {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
+  const [profileExists, setProfileExists] = useState(false);
+  const [profilePersonalUid, setProfilePersonalUid] = useState(null);
 
   useEffect(() => {
     // Load saved first and last name if they exist
@@ -14,9 +16,41 @@ export default function UserInfoScreen({ onContinue }) {
       try {
         const savedFirstName = await AsyncStorage.getItem("user_first_name");
         const savedLastName = await AsyncStorage.getItem("user_last_name");
+        const userUid = await AsyncStorage.getItem("user_uid");
+
+        console.log("Loading saved data:", {
+          savedFirstName,
+          savedLastName,
+          userUid,
+        });
 
         if (savedFirstName) setFirstName(savedFirstName);
         if (savedLastName) setLastName(savedLastName);
+
+        // Check if profile exists
+        if (userUid) {
+          console.log("Checking for existing profile with userUid:", userUid);
+          const response = await fetch(`https://ioec2testsspm.infiniteoptions.com/api/v1/userprofileinfo/${userUid}`);
+          const data = await response.json();
+          console.log("Profile check response:", JSON.stringify(data, null, 2));
+
+          if (data.message !== "Profile not found for this user") {
+            console.log("Profile exists, setting profile data");
+            setProfileExists(true);
+            setProfilePersonalUid(data.personal_info?.profile_personal_uid);
+            console.log("Profile personal UID:", data.personal_info?.profile_personal_uid);
+
+            // Pre-fill the form with existing data
+            if (data.personal_info) {
+              console.log("Pre-filling form with existing data:", data.personal_info);
+              setFirstName(data.personal_info.profile_personal_first_name || "");
+              setLastName(data.personal_info.profile_personal_last_name || "");
+              setPhoneNumber(data.personal_info.profile_personal_phone_number || "");
+            }
+          } else {
+            console.log("No existing profile found for user");
+          }
+        }
       } catch (error) {
         console.error("Error loading saved data:", error);
       }
@@ -60,30 +94,52 @@ export default function UserInfoScreen({ onContinue }) {
       formData.append("profile_personal_referred_by", "100-000001");
       formData.append("user_uid", userUid);
 
-      console.log("Sending profile data to backend:", formData);
+      // Add profile_uid to form data only for PUT requests
+      if (profileExists && profilePersonalUid) {
+        formData.append("profile_uid", profilePersonalUid);
+      }
 
-      // Make the POST request to update user profile
-      const response = await fetch("https://ioec2testsspm.infiniteoptions.com/api/v1/userprofileinfo", {
-        method: "POST",
+      // Log the form data contents
+      console.log("Form data contents:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+
+      const endpoint = "https://ioec2testsspm.infiniteoptions.com/api/v1/userprofileinfo";
+      const method = profileExists ? "PUT" : "POST";
+
+      console.log("Making API request:", {
+        endpoint,
+        method,
+        profileExists,
+        profilePersonalUid,
+      });
+
+      // Make the appropriate request based on whether profile exists
+      console.log("Sending this data:", formData);
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           // Remove "Content-Type": "multipart/form-data"
         },
         body: formData,
       });
-      console.log("User profile response:", response);
+
+      console.log("API Response status:", response.status);
+      console.log("API Response headers:", JSON.stringify(response.headers, null, 2));
+
+      const responseObject = await response.json();
+      console.log("API Response body:", JSON.stringify(responseObject, null, 2));
 
       if (!response.ok) {
-        throw new Error("Failed to update user profile");
+        throw new Error(`Failed to ${method.toLowerCase()} user profile: ${responseObject.message || "Unknown error"}`);
       }
 
-      const result = await response.json();
-      console.log("Profile update response:", result);
-
-      // Call the onContinue callback to proceed to the next screen
+      console.log("Profile update successful, proceeding to next screen");
       onContinue();
     } catch (error) {
       console.error("Error updating user profile:", error);
-      Alert.alert("Error", "Failed to update profile. Please try again.");
+      Alert.alert("Error", `Failed to update profile: ${error.message}`);
     } finally {
       setLoading(false);
     }
