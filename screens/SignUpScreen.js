@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from "react-native";
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { GoogleSigninButton } from "@react-native-google-signin/google-signin";
 import AppleSignIn from "../AppleSignIn";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -15,6 +15,7 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isValid, setIsValid] = useState(false);
+  const [showSpinner, setShowSpinner] = useState(false);
 
   const validateInputs = (email, password, confirmPassword) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,14 +46,29 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
   //     return CryptoJS.SHA256(password).toString();
   //   };
 
-  const encryptPassword = async (password) => {
-    console.log("Encrypting password:", password);
-    const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
-    return hash;
+  const createHash = async (value) => {
+    // Convert the string to bytes using UTF-8 encoding (matching backend's str().encode())
+    const encoder = new TextEncoder();
+    const data = encoder.encode(value.toString());
+
+    // Create hash from the encoded bytes
+    const hashBuffer = await Crypto.digestAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
+
+    // Convert to hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return hashHex;
   };
 
   const handleContinue = async () => {
+    if (!isValid) {
+      Alert.alert("Error", "Please ensure all fields are valid.");
+      return;
+    }
+
     try {
+      setShowSpinner(true);
+
       // First, check if the email exists
       console.log("Checking if email exists:", email);
       const saltResponse = await fetch(ACCOUNT_SALT_ENDPOINT, {
@@ -82,15 +98,17 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
       }
 
       // Email doesn't exist, proceed with account creation
-      console.log("Creating new account for email:", email, password);
-      const encryptedPassword = await encryptPassword(password);
-      console.log("Password encrypted (SHA256): ", encryptedPassword);
-      console.log(
-        JSON.stringify({
-          email: email,
-          password: encryptedPassword,
-        })
-      );
+      console.log("Creating new account for email:", email);
+
+      // Hash the password
+      const hashedPassword = await createHash(password);
+      console.log("Password hashed (SHA256):", hashedPassword);
+
+      // Create account with hashed password
+      console.log("Sending create account request with payload:", {
+        email,
+        password: hashedPassword,
+      });
 
       const createAccountResponse = await fetch(CREATE_ACCOUNT_ENDPOINT, {
         method: "POST",
@@ -99,7 +117,7 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
         },
         body: JSON.stringify({
           email,
-          password: encryptedPassword,
+          password: hashedPassword,
         }),
       });
 
@@ -128,6 +146,8 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
     } catch (error) {
       console.error("Error in account creation:", error);
       Alert.alert("Error", "Failed to create account. Please try again.", [{ text: "OK" }]);
+    } finally {
+      setShowSpinner(false);
     }
   };
 
@@ -146,8 +166,8 @@ export default function SignUpScreen({ onGoogleSignUp, onAppleSignUp, onError, o
         <TextInput style={styles.input} placeholder='Confirm Password' value={confirmPassword} onChangeText={handleConfirmPasswordChange} secureTextEntry />
       </View>
 
-      <TouchableOpacity style={[styles.continueButton, isValid && styles.continueButtonActive]} onPress={handleContinue} disabled={!isValid}>
-        <Text style={[styles.continueButtonText, isValid && styles.continueButtonTextActive]}>Continue</Text>
+      <TouchableOpacity style={[styles.continueButton, isValid && styles.continueButtonActive]} onPress={handleContinue} disabled={!isValid || showSpinner}>
+        {showSpinner ? <ActivityIndicator color='#fff' /> : <Text style={[styles.continueButtonText, isValid && styles.continueButtonTextActive]}>Continue</Text>}
       </TouchableOpacity>
 
       <View style={styles.dividerContainer}>

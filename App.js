@@ -384,7 +384,16 @@ export default function App() {
             }}
           />
         ) : showLogin ? (
-          <LoginScreen onGoogleSignIn={signIn} onAppleSignIn={handleSignIn} onError={handleError} onSignUpPress={handleSignUpClick} />
+          <LoginScreen
+            onGoogleSignIn={signIn}
+            onAppleSignIn={handleSignIn}
+            onError={handleError}
+            onSignUpPress={handleSignUpClick}
+            onLoginSuccess={() => {
+              setShowLogin(false);
+              setShowUserProfile(true);
+            }}
+          />
         ) : (
           <>
             <View style={styles.circlesContainer}>
